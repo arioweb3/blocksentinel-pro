@@ -34,15 +34,15 @@ def make_finding(rule_id, title, severity, confidence, source, offset, descripti
 
 def heuristic_analysis(source: str, filename: str) -> list[Finding]:
     findings = []
-    for m in re.finditer(r"\\btx\\s*\\.\\s*origin\\b", source):
+    for m in re.finditer(r"\btx\.origin\b", source):
         findings.append(make_finding("BS001", "tx.origin usage", "high", "high", source, m.start(),
             "tx.origin appears in the source. If used for authorization, this can enable phishing-style call chains.",
             "Use msg.sender for caller identity and apply explicit, tested access-control rules.", "heuristic:tx-origin", filename))
-    for m in re.finditer(r"\\.\\s*(?:call|delegatecall|staticcall)\\s*(?:\\{[^}]*\\})?\\s*\\(", source):
+    for m in re.finditer(r"\.\s*(?:call|delegatecall|staticcall)\s*(?:\[[^\]]*\])?\s*\(", source):
         findings.append(make_finding("BS003", "Low-level external call", "medium", "medium", source, m.start(),
             "A low-level external call was detected. Its safety depends on context, return-value handling, and call ordering.",
             "Review checks-effects-interactions, handle the success value, and test adversarial call paths.", "heuristic:low-level-call", filename))
-    pragma = re.search(r"pragma\\s+solidity\\s+([^;]+);", source)
+    pragma = re.search(r"pragma\s+solidity\s+([^;]+);", source)
     if pragma and (pragma.group(1).strip().startswith("^") or ">" in pragma.group(1)):
         findings.append(make_finding("BS004", "Floating Solidity compiler pragma", "low", "high", source, pragma.start(),
             f"Compiler pragma is not pinned to one exact version: {pragma.group(1).strip()}.",
