@@ -1,0 +1,61 @@
+name: BlockSentinel Security Scan
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: write
+
+jobs:
+  analyze:
+    name: Solidity static analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install BlockSentinel dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Slither
+        run: pip install slither-analyzer
+
+      - name: Install solc
+        uses: crytic/solc-select@v1
+        with:
+          solc-version: 0.8.24
+
+      - name: Analyze changed Solidity files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          python scripts/scan_repo.py --root . --sarif artifacts/blocksentinel.sarif --json artifacts/blocksentinel.json
+
+      - name: Upload SARIF to GitHub Code Scanning
+        if: always() && hashFiles('artifacts/blocksentinel.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: artifacts/blocksentinel.sarif
+          category: blocksentinel
+
+      - name: Upload report artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: blocksentinel-reports
+          path: artifacts/
+          if-no-files-found: warn
